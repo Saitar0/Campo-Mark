@@ -1,0 +1,4 @@
+/* CampoMark app styles — Tailwind handles most styling via utilities. */
+.App {
+  text-align: left;
+}

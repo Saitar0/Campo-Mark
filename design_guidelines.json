@@ -1,0 +1,152 @@
+{
+  "app_name": "CampoMark",
+  "app_type": "hybrid_fullstack SaaS marketplace with dashboards",
+  "archetype": "THE PERFORMANCE PRO x SWISS ATHLETIC (Grass-Green Kinetic Accent)",
+  "language_support": {
+    "default": "PT-BR",
+    "supported": ["PT-BR", "EN"],
+    "implementation_guide": "Use a global language context or Zustand state with key-value dictionaries. Header must include a crisp pill selector [PT-BR | EN] with `data-testid='language-toggle'`."
+  },
+  "typography": {
+    "heading_font": "Outfit, sans-serif",
+    "body_font": "Inter, sans-serif",
+    "mono_font": "JetBrains Mono, monospace",
+    "font_imports": "@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');",
+    "scale": {
+      "h1_hero": "text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-none",
+      "h2_section": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight",
+      "h3_card": "text-xl sm:text-2xl font-bold tracking-snug",
+      "h4_widget": "text-lg sm:text-xl font-semibold",
+      "body_text": "text-sm sm:text-base font-normal leading-relaxed text-slate-600 dark:text-slate-300",
+      "caption": "text-xs font-mono tracking-wider uppercase text-slate-400 dark:text-slate-400"
+    }
+  },
+  "colors": {
+    "theme": "Light mode primary for marketplace & booking flow with ultra-sleek dark pitch mode toggle for night play / owner agenda",
+    "primary_brand": {
+      "grass_green_accent": "#10B981",
+      "grass_green_hover": "#059669",
+      "grass_green_light": "#ECFDF5",
+      "pitch_black": "#0B0F17",
+      "pitch_slate": "#1E293B"
+    },
+    "semantic_status": {
+      "available_slot": "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-600 hover:text-white dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",
+      "booked_slot": "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed dark:bg-slate-800/80 dark:text-slate-500 dark:border-slate-700",
+      "blocked_slot": "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800",
+      "pending_payment": "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800",
+      "cancelled": "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800"
+    },
+    "neutrals": {
+      "bg_canvas_light": "#F8FAFC",
+      "bg_card_light": "#FFFFFF",
+      "bg_canvas_dark": "#0B0F17",
+      "bg_card_dark": "#161E2E",
+      "border_light": "#E2E8F0",
+      "border_dark": "#27354A"
+    }
+  },
+  "layout_and_spacing": {
+    "padding_philosophy": "Generous Spacing (p-6, p-8, p-12). Containers with borders must have internal padding (p-6/p-8) to prevent text collision.",
+    "grid_modes": {
+      "marketplace": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8",
+      "field_detail": "grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12",
+      "dashboard_owner": "grid grid-cols-1 md:grid-cols-12 gap-6",
+      "schedule_calendar": "grid grid-cols-8 gap-2 overflow-x-auto min-w-[760px]"
+    },
+    "navigation": {
+      "desktop": "Fixed glassmorphism header (backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 z-50 h-16 sm:h-20)",
+      "mobile_dock": "Bottom sticky bar for marketplace search / checkout action on small screens (data-testid='mobile-dock')"
+    }
+  },
+  "key_user_flows": {
+    "marketplace_and_search": {
+      "features": ["City / Neighborhood filter (São Paulo, Rio, Curitiba, Belo Horizonte)", "Field type tags (Society 7v7, Futsal Indoor, Campo Aberto 11v11, Saibro/Grama Sintética)", "Date picker & price range slider", "Real-time availability badge"],
+      "data_testids": {
+        "city_select": "city-filter-select",
+        "type_filter": "field-type-filter",
+        "search_input": "search-field-input",
+        "field_card": "field-item-card",
+        "book_now_button": "field-book-now-button"
+      }
+    },
+    "three_step_booking": {
+      "steps": [
+        "Step 1: Choose Field & Specific Court/Pitch (Select Society 1 vs Society 2)",
+        "Step 2: Interactive Real-time Weekly Slot Grid (Select Date + Time Slot e.g., 19:00 - 20:00 R$180)",
+        "Step 3: Pay/Confirm Checkout (PIX QR Code simulation, Stripe Credit Card simulation, Deposit vs Full Pay)"
+      ],
+      "ux_patterns": "iFood / Booking.com style summary sidebar with sticky 'Confirmar Reserva' CTA button, countdown timer for hold slot (10 mins), and instant toast confirmation via Sonner.",
+      "data_testids": {
+        "time_slot": "booking-time-slot",
+        "step_indicator": "booking-step-indicator",
+        "payment_method_pix": "payment-method-pix",
+        "payment_method_card": "payment-method-card",
+        "confirm_booking_button": "confirm-booking-submit-button"
+      }
+    },
+    "owner_dashboard": {
+      "features": [
+        "Weekly / Daily Agenda Grid with quick manual block ('Bloquear Horário')",
+        "Fields & Pricing CRUD (hourly rate, peak hours pricing e.g. after 18h)",
+        "Revenue & Bookings Panel (R$ Total Month, Occupancy Rate %, PIX vs Card breakdown)",
+        "Subscription status badge ('Plano Pro - 7 dias de teste grátis / 7 days free trial' with 'Assinar no Stripe' CTA button)"
+      ],
+      "data_testids": {
+        "agenda_grid": "owner-agenda-grid",
+        "add_field_button": "owner-add-field-button",
+        "manual_block_button": "owner-manual-block-button",
+        "revenue_stat_card": "owner-revenue-stat-card",
+        "subscription_badge": "owner-subscription-status-badge"
+      }
+    },
+    "admin_dashboard": {
+      "features": [
+        "Owner Management Table (Activate / Deactivate owners, view subscription status)",
+        "Platform Metrics (Total Revenue, Active Owners, Total Bookings, MRR)",
+        "Global System Settings"
+      ],
+      "data_testids": {
+        "owners_table": "admin-owners-table",
+        "toggle_owner_status": "admin-toggle-owner-status",
+        "mrr_stat_card": "admin-mrr-stat-card"
+      }
+    },
+    "auth_experience": {
+      "features": [
+        "Quick demo login switchers ('Entrar como Jogador', 'Entrar como Dono de Arena', 'Entrar como Admin')",
+        "Role-aware tabbed login/register dialogs"
+      ],
+      "data_testids": {
+        "demo_customer_login": "demo-customer-login-button",
+        "demo_owner_login": "demo-owner-login-button",
+        "demo_admin_login": "demo-admin-login-button",
+        "auth_submit": "auth-submit-button"
+      }
+    }
+  },
+  "image_urls": {
+    "hero_banner": "https://images.unsplash.com/photo-1517747614396-d21a78b850e8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NjZ8MHwxfHNlYXJjaHwxfHxmdXRzYWwlMjBjb3VydCUyMGluZG9vciUyMHR1cmYlMjBuaWdodCUyMHNvY2NlciUyMGZpZWxkJTIwZmxvb2RsaWdodHxlbnwwfHx8fDE3ODkwOTI5NzB8MA&ixlib=rb-4.1.0&q=85",
+    "aerial_field": "https://images.unsplash.com/photo-1716745559715-282bb61e3012?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwyfHxmb290YmFsbCUyMGZ1dHNhbCUyMGZpZWxkJTIwcGl0Y2glMjBicmF6aWwlMjBzdGFkaXVtJTIwc29jY2VyJTIwcGxheWVyfGVufDB8fHx8MTc4OTA5Mjk2M3ww&ixlib=rb-4.1.0&q=85",
+    "night_floodlight_goal": "https://images.unsplash.com/photo-1652190416554-c46af8a0ff50?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NjZ8MHwxfHNlYXJjaHwzfHxmdXRzYWwlMjBjb3VydCUyMGluZG9vciUyMHR1cmYlMjBuaWdodCUyMHNvY2NlciUyMGZpZWxkJTIwZmxvb2RsaWdodHxlbnwwfHx8fDE3ODkwOTI5NzB8MA&ixlib=rb-4.1.0&q=85",
+    "player_brazil_jersey": "https://images.unsplash.com/photo-1783434423790-a20b76c0bf35?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwxfHxmb290YmFsbCUyMGZ1dHNhbCUyMGZpZWxkJTIwcGl0Y2glMjBicmF6aWwlMjBzdGFkaXVtJTIwc29jY2VyJTIwcGxheWVyfGVufDB8fHx8MTc4OTA5Mjk2M3ww&ixlib=rb-4.1.0&q=85",
+    "player_juggling": "https://images.unsplash.com/photo-1783434423812-6237e9eb2b42?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHw0fHxmb290YmFsbCUyMGZ1dHNhbCUyMGZpZWxkJTIwcGl0Y2glMjBicmF6aWwlMjBzdGFkaXVtJTIwc29jY2VyJTIwcGxheWVyfGVufDB8fHx8MTc4OTA5Mjk2M3ww&ixlib=rb-4.1.0&q=85",
+    "stadium_pitch": "https://images.unsplash.com/photo-1647118868186-70d38e10b0dc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NjZ8MHwxfHNlYXJjaHw0fHxmdXRzYWwlMjBjb3VydCUyMGluZG9vciUyMHR1cmYlMjBuaWdodCUyMHNvY2NlciUyMGZpZWxkJTIwZmxvb2RsaWdodHxlbnwwfHx8fDE3ODkwOTI5NzB8MA&ixlib=rb-4.1.0&q=85"
+  },
+  "instructions_to_main_agent": [
+    "ALWAYS include `data-testid` attributes on every single button, select, input, modal trigger, card, tab, and status indicator.",
+    "Use standard React .js and .jsx files with Tailwind CSS and Shadcn/ui primitives already present in `src/components/ui/`.",
+    "Ensure bilingual PT-BR (default) / EN text switch works seamlessly across all roles (Marketplace, Customer Bookings, Owner Dashboard, Admin Dashboard).",
+    "In the 3-step booking flow, make time slots interactive, visually crisp, and display price per slot (e.g. '19:00 - 20:00 | R$ 180').",
+    "Owner dashboard must feature a 7-day trial banner ('7 dias grátis restantes') with Stripe subscription button simulation.",
+    "Use `sonner` (`toast.success`, `toast.error`) for all booking confirmations, slot locks, cancellations, and field CRUD operations.",
+    "Avoid full transparent headers; use `backdrop-blur-xl bg-white/80 dark:bg-slate-900/80` with border.",
+    "Include quick role-switch pills in the header so reviewers can effortlessly jump between Customer Marketplace, Field Owner Portal, and Platform Admin Console."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": {
+    "testing_attributes": "All interactive and key informational elements MUST include `data-testid` attribute in kebab-case format.",
+    "spacing": "Use 2-3x generous spacing. Avoid cramped tables or tiny touch targets on mobile.",
+    "micro_interactions": "Hover scaling (hover:scale-[1.02]), crisp active button states (active:scale-95), and active tab highlighting.",
+    "contrast": "Ensure white text over dark backgrounds or dark text over emerald badges meets WCAG AA standards."
+  }
+}

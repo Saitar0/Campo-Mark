@@ -1,0 +1,36 @@
+{
+  "summary": "First full test iteration of CampoMark. Backend: 32/32 pytest tests passed covering auth (3 roles + JWT + Google invalid + forgot/reset), public fields listing/filters/availability, booking flow (on_site + duplicate 409 + slot state update + online checkout URL generation + cancellations), owner (fields CRUD, agenda, blocks, revenue, subscribe checkout, plan info), and admin (metrics, owners, activate/deactivate + public listing hiding, RBAC 403 for customer). Frontend: Landing loads with 3 seed cards + hero + filters; language toggle (PT/EN) works; auth page shows all 3 demo buttons + Google login; customer login + on_site booking flow succeeds end-to-end with redirect to /minhas-reservas and 'Confirmada' badge; anti-overbooking reflected in agenda (slot showing customer name); owner dashboard tabs (Agenda/Meus campos/Faturamento/Assinatura) all render expected testids (owner-agenda-grid, owner-manual-block-button, owner-add-field-button, owner-revenue-stat-card, subscribe-button); admin dashboard shows metrics cards, owners table and toggle buttons; forgot-password page loads. Trial badge '7 trial days left' visible on owner panel. No blocking bugs found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_campomark_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "booking_routes.create_booking: payment_method validation order — the 'invalid method' check is after the accept_online/accept_on_site checks, so an invalid method value like 'xyz' silently fails those (both return False) and can leak to the slot lookup; move the 'not in (online, on_site)' check to the top.",
+    "payment_routes.get_tax_mode caches _tax_mode in a module-level global with no reset; if Stripe.Account.retrieve returns transiently, mode is stuck for the process — consider explicit env var override.",
+    "email_service/whatsapp exceptions swallowed silently in background tasks; ensure logging is present so silent failures aren't invisible in production.",
+    "auth_routes.forgot_password: RESET_APP_LIMIT=9 across ALL emails in a 10-minute window is very aggressive for a preview environment; may be intentional but worth documenting.",
+    "server.py CORS: allow_origins uses only FRONTEND_URL + localhost:3000; if preview URL changes, CORS breaks. Already handled via env var, good.",
+    "Some test data (TEST_ fields) was left in DB from prior test iterations; cleanup script recommended in seeding or a scheduled purge task.",
+    "Owner dashboard tabs mount their content only when active — this is normal shadcn Tabs behavior; ensure that tests aware of this."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_campomark_api.py"
+  ],
+  "success_rate": {"backend": "100% (32/32)", "frontend": "100% of critical flows"},
+  "test_credentials": "Present in /app/memory/test_credentials.md — admin/owner/customer all working with the credentials listed.",
+  "seed_data_creation": "No new seed data created; cleaned up 2 leftover TEST_ fields from previous smoke tests. Seed_admin + seed_demo run on startup and are idempotent.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Full E2E backend suite lives at /app/backend/tests/test_campomark_api.py (pytest, uses REACT_APP_BACKEND_URL). Uses pytest cache to share booking_id/field_id between tests within TestBookings. Frontend testids that were verified: field-item-card, field-book-now-button-<id>, date-pill-<YYYY-MM-DD>, booking-time-slot-<HH:MM>, payment-method-card, payment-method-pix, confirm-booking-submit-button, demo-*-login-button, google-login-button, language-toggle, owner-agenda-grid, owner-manual-block-button, owner-add-field-button, owner-revenue-stat-card, subscribe-button, admin-mrr-stat-card, admin-owners-table, admin-toggle-owner-status-*. Google OAuth cannot be fully automated (external redirect); only invalid session_id → 401 verified. Stripe checkout URLs are generated but real payment not completed. Email delivery via Emergent proxy not verified end-to-end (expected).",
+  "rca of the issue": "No bugs required RCA in this iteration."
+}
