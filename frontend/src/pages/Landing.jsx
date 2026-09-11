@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Search, Zap } from "lucide-react";
-import api, { brl } from "../lib/api";
-import { useLang } from "../context/LangContext";
+import api from "../lib/api";
+import { useLang, COUNTRIES, money } from "../context/LangContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
@@ -23,6 +23,9 @@ function FieldCard({ field }) {
         <Badge className="absolute top-3 left-3 bg-white/90 text-slate-800 backdrop-blur-sm border-0 font-semibold">
           {t(field.field_type)}
         </Badge>
+        <Badge className="absolute top-3 right-3 bg-[#0B0F17]/80 text-white backdrop-blur-sm border-0 font-mono text-xs">
+          {field.country || "BR"}
+        </Badge>
       </div>
       <div className="p-5">
         <h3 className="font-display font-bold text-lg text-slate-900 leading-snug">{field.name}</h3>
@@ -33,7 +36,7 @@ function FieldCard({ field }) {
           <div>
             {field.price_from != null && (
               <p className="text-xs text-slate-400">
-                {t("from_price")} <span className="font-mono font-semibold text-base text-emerald-600">{brl(field.price_from)}</span>
+                {t("from_price")} <span className="font-mono font-semibold text-base text-emerald-600">{money(field.price_from, field.currency)}</span>
                 <span className="text-xs text-slate-400"> {t("per_hour")}</span>
               </p>
             )}
@@ -50,7 +53,7 @@ function FieldCard({ field }) {
 }
 
 export default function Landing() {
-  const { t } = useLang();
+  const { t, country } = useLang();
   const navigate = useNavigate();
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -64,11 +67,14 @@ export default function Landing() {
     if (city !== "all") params.city = city;
     if (type !== "all") params.field_type = type;
     if (q) params.q = q;
+    if (country) params.country = country;
     api.get("/fields", { params })
       .then((r) => setFields(r.data))
       .catch(() => setFields([]))
       .finally(() => setLoading(false));
-  }, [city, type, q]);
+  }, [city, type, q, country]);
+
+  const countryName = country ? ((COUNTRIES.find((c) => c.code === country) || {}).name || country) : null;
 
   return (
     <div className="pt-16 sm:pt-20">
@@ -125,7 +131,17 @@ export default function Landing() {
             {[1, 2, 3].map((i) => <div key={i} className="h-72 rounded-2xl bg-slate-100 animate-pulse" />)}
           </div>
         ) : fields.length === 0 ? (
-          <p data-testid="no-fields-message" className="text-center text-slate-500 py-16">{t("no_fields")}</p>
+          <div data-testid="no-fields-message" className="text-center py-16 max-w-lg mx-auto">
+            <p className="text-slate-500 text-base">
+              {countryName ? t("no_fields_in_country", { "país": countryName }) : t("no_fields")}
+            </p>
+            {countryName && (
+              <Button data-testid="empty-country-cta" onClick={() => navigate("/auth?role=owner")}
+                className="mt-6 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-8 active:scale-95 transition-transform">
+                {t("owner_cta_button")}
+              </Button>
+            )}
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             {fields.map((f) => <FieldCard key={f.id} field={f} />)}

@@ -4,14 +4,21 @@ from datetime import datetime, timezone
 
 import stripe
 from bson import ObjectId
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi.responses import Response as FileResponse
 from pydantic import BaseModel, Field
 from pymongo.errors import DuplicateKeyError
 
-from deps import (db, now_utc, require_role, get_slot_statuses, notify, LOCAL_TZ)
+from deps import (db, now_utc, require_role, get_current_user, get_slot_statuses, notify, LOCAL_TZ)
 from email_service import (send_booking_confirmation_customer, send_booking_notification_owner,
                            send_booking_cancelled)
 from whatsapp_service import send_whatsapp, booking_message
+from storage_service import put_object, get_object
+
+ALLOWED_RECEIPT_TYPES = {
+    "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf",
+}
+MAX_RECEIPT_SIZE = 5 * 1024 * 1024
 
 router = APIRouter(prefix="/api", tags=["bookings"])
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or "sk_test_emergent"
@@ -74,9 +81,11 @@ async def create_booking(payload: BookingCreate, background_tasks: BackgroundTas
         "customer_phone": user.get("phone", ""), "customer_email": user.get("email", ""),
         "field_name": f["name"], "field_address": f.get("address", ""), "field_city": f.get("city", ""),
         "date": payload.date, "start_time": slot["start"], "end_time": slot["end"],
-        "price": slot["price"], "status": "pending_payment" if online else "confirmed",
+        "price": slot["price"], "currency": f.get("currency", "brl"),
+        "status": "pending_payment" if online else "confirmed",
         "payment_method": payload.payment_method,
-        "payment_status": "pending" if online else "on_site",
+        "payment_status": "pending" if online else "pending_on_site",
+        "receipt": None,
         "created_at": now_utc().isoformat(),
     }
     try:
@@ -202,3 +211,72 @@ async def my_notifications(user: dict = Depends(require_role("owner", "customer"
 async def read_all_notifications(user: dict = Depends(require_role("owner", "customer"))):
     await db.notifications.update_many({"user_id": str(user["_id"])}, {"$set": {"read": True}})
     return {"message": "ok"}
+
+
+@router.post("/owner/bookings/{booking_id}/mark-paid")
+async def mark_booking_paid(booking_id: str, user: dict = Depends(require_role("owner"))):
+    b = await db.bookings.find_one({"id": booking_id, "owner_id": str(user["_id"])})
+    if not b:
+        raise HTTPException(status_code=404, detail="Reserva nao encontrada")
+    if b["status"] != "confirmed" or b.get("payment_method") != "on_site":
+        raise HTTPException(status_code=400, detail="Reserva nao elegivel")
+    if b.get("payment_status") == "paid":
+        raise HTTPException(status_code=400, detail="Reserva ja marcada como paga")
+    await db.bookings.update_one({"id": booking_id},
+                                 {"$set": {"payment_status": "paid", "paid_at": now_utc().isoformat()}})
+    await notify(b["customer_id"], "Pagamento confirmado",
+                 f"O campo {b['field_name']} confirmou seu pagamento da reserva de {b['date']} as {b['start_time']}.")
+    return {"message": "ok", "payment_status": "paid"}
+
+
+async def _get_booking_for_receipt(booking_id: str, user: dict) -> dict:
+    b = await db.bookings.find_one({"id": booking_id})
+    if not b:
+        raise HTTPException(status_code=404, detail="Reserva nao encontrada")
+    uid = str(user["_id"])
+    if user.get("role") != "admin" and uid not in (b["customer_id"], b["owner_id"]):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return b
+
+
+@router.get("/bookings/{booking_id}/receipt")
+async def get_receipt_info(booking_id: str, user: dict = Depends(get_current_user)):
+    b = await _get_booking_for_receipt(booking_id, user)
+    return {"receipt": b.get("receipt")}
+
+
+@router.post("/bookings/{booking_id}/receipt-upload")
+async def upload_receipt(booking_id: str, file: UploadFile = File(...),
+                         user: dict = Depends(get_current_user)):
+    b = await _get_booking_for_receipt(booking_id, user)
+    content_type = file.content_type or ""
+    if content_type not in ALLOWED_RECEIPT_TYPES:
+        raise HTTPException(status_code=400, detail="Formato invalido. Use JPG, PNG, WEBP ou PDF.")
+    data = await file.read()
+    if len(data) > MAX_RECEIPT_SIZE:
+        raise HTTPException(status_code=400, detail="Arquivo muito grande (max 5MB)")
+    ext = ALLOWED_RECEIPT_TYPES[content_type]
+    path = f"campomark/receipts/{booking_id}/{uuid.uuid4()}.{ext}"
+    import asyncio
+    result = await asyncio.to_thread(put_object, path, data, content_type)
+    receipt = {"kind": "upload", "path": result["path"], "filename": file.filename,
+               "content_type": content_type, "uploaded_by": str(user["_id"]),
+               "uploaded_at": now_utc().isoformat()}
+    await db.bookings.update_one({"id": booking_id}, {"$set": {"receipt": receipt}})
+    await db.files.insert_one({
+        "id": str(uuid.uuid4()), "storage_path": result["path"],
+        "original_filename": file.filename, "content_type": content_type,
+        "size": result.get("size"), "booking_id": booking_id, "is_deleted": False,
+        "created_at": now_utc().isoformat()})
+    return {"receipt": receipt}
+
+
+@router.get("/bookings/{booking_id}/receipt-file")
+async def download_receipt(booking_id: str, user: dict = Depends(get_current_user)):
+    b = await _get_booking_for_receipt(booking_id, user)
+    receipt = b.get("receipt")
+    if not receipt or receipt.get("kind") != "upload":
+        raise HTTPException(status_code=404, detail="Comprovante nao encontrado")
+    import asyncio
+    data, content_type = await asyncio.to_thread(get_object, receipt["path"])
+    return FileResponse(content=data, media_type=receipt.get("content_type", content_type))

@@ -67,11 +67,23 @@ async def handle_paid_session(session: dict):
     if meta.get("type") == "booking":
         booking = await db.bookings.find_one({"id": meta.get("booking_id")})
         if booking and booking["status"] == "pending_payment":
+            receipt_url = None
+            pi = session.get("payment_intent")
+            if pi:
+                try:
+                    intent = stripe.PaymentIntent.retrieve(pi)
+                    charge_id = getattr(intent, "latest_charge", None) or (intent.get("latest_charge") if isinstance(intent, dict) else None)
+                    if charge_id:
+                        receipt_url = stripe.Charge.retrieve(charge_id).get("receipt_url")
+                except stripe.error.StripeError:
+                    pass
+            update = {"status": "confirmed", "payment_status": "paid",
+                      "stripe_payment_intent_id": pi, "paid_at": now_utc().isoformat()}
+            if receipt_url:
+                update["receipt"] = {"kind": "stripe", "url": receipt_url,
+                                     "uploaded_at": now_utc().isoformat()}
             await db.bookings.update_one(
-                {"id": booking["id"], "status": "pending_payment"},
-                {"$set": {"status": "confirmed", "payment_status": "paid",
-                          "stripe_payment_intent_id": session.get("payment_intent"),
-                          "paid_at": now_utc().isoformat()}})
+                {"id": booking["id"], "status": "pending_payment"}, {"$set": update})
             booking = await db.bookings.find_one({"id": booking["id"]})
             await _notify_new_booking(booking)
     elif meta.get("type") == "subscription":
@@ -97,9 +109,10 @@ async def booking_checkout(req: BookingCheckoutRequest, user: dict = Depends(req
     if booking["status"] != "pending_payment":
         raise HTTPException(status_code=400, detail="Reserva nao esta pendente de pagamento")
     amount_cents = int(round(booking["price"] * 100))
+    currency = booking.get("currency", "brl")
     session = create_session(
         line_items=[{"price_data": {
-            "currency": "brl", "unit_amount": amount_cents,
+            "currency": currency, "unit_amount": amount_cents,
             "product_data": {"name": f"Reserva - {booking['field_name']} ({booking['date']} {booking['start_time']})"}},
             "quantity": 1}],
         mode="payment",
@@ -109,7 +122,7 @@ async def booking_checkout(req: BookingCheckoutRequest, user: dict = Depends(req
     )
     await db.payment_transactions.insert_one({
         "session_id": session.id, "user_id": str(user["_id"]), "type": "booking",
-        "booking_id": booking["id"], "amount": amount_cents, "currency": "brl",
+        "booking_id": booking["id"], "amount": amount_cents, "currency": currency,
         "status": "initiated", "payment_status": "pending",
         "created_at": now_utc().isoformat(), "updated_at": now_utc().isoformat()})
     await db.bookings.update_one({"id": booking["id"]}, {"$set": {"session_id": session.id}})

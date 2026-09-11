@@ -2,11 +2,11 @@ import uuid
 from typing import Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from deps import (db, now_utc, require_role, owner_can_operate, get_slot_statuses,
-                  public_user)
+                  public_user, currency_for_country)
 
 router = APIRouter(prefix="/api", tags=["fields"])
 
@@ -26,6 +26,7 @@ class FieldPayload(BaseModel):
     address: str = ""
     city: str = Field(min_length=2)
     neighborhood: str = ""
+    country: str = "BR"
     photos: list[str] = []
     amenities: list[str] = []
     slot_duration_minutes: int = Field(default=60, ge=30, le=180)
@@ -58,13 +59,15 @@ async def _owners_map(fields):
 
 @router.get("/fields")
 async def list_fields(city: Optional[str] = None, field_type: Optional[str] = None,
-                      q: Optional[str] = None):
-    fields = await db.fields.find({"active": True}).to_list(500)
+                      q: Optional[str] = None, country: Optional[str] = None):
+    fields = await db.fields.find({"active": True, "hidden": {"$ne": True}}).to_list(500)
     owners = await _owners_map(fields)
     out = []
     for f in fields:
         owner = owners.get(f["owner_id"])
         if not owner or not owner_can_operate(owner):
+            continue
+        if country and f.get("country", "BR") != country:
             continue
         if city and f.get("city", "").lower() != city.lower():
             continue
@@ -76,6 +79,40 @@ async def list_fields(city: Optional[str] = None, field_type: Optional[str] = No
                 continue
         out.append(serialize_field(f))
     return out
+
+
+@router.get("/geo")
+async def geo_lookup(request: Request):
+    import httpx
+    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    if not ip and request.client:
+        ip = request.client.host
+    if not ip or ip in ("127.0.0.1", "::1", "localhost"):
+        return {"country": None}
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"https://ipapi.co/{ip}/json/")
+            if r.status_code == 200:
+                d = r.json()
+                return {"country": d.get("country_code"), "country_name": d.get("country_name")}
+    except Exception:
+        pass
+    return {"country": None}
+
+
+@router.get("/fields/countries")
+async def field_countries():
+    fields = await db.fields.find({"active": True, "hidden": {"$ne": True}},
+                                  {"country": 1, "owner_id": 1}).to_list(1000)
+    owners = await _owners_map(fields)
+    counts = {}
+    for f in fields:
+        owner = owners.get(f["owner_id"])
+        if not owner or not owner_can_operate(owner):
+            continue
+        c = f.get("country", "BR")
+        counts[c] = counts.get(c, 0) + 1
+    return [{"country": k, "count": v} for k, v in sorted(counts.items())]
 
 
 @router.get("/fields/{field_id}")
@@ -109,7 +146,8 @@ async def create_field(payload: FieldPayload, user: dict = Depends(require_role(
         raise HTTPException(status_code=400, detail="Tipo de campo invalido")
     doc = payload.model_dump()
     doc.update({"id": str(uuid.uuid4()), "owner_id": str(user["_id"]),
-                "owner_name": user.get("name", ""), "active": True,
+                "owner_name": user.get("name", ""), "active": True, "hidden": False,
+                "currency": currency_for_country(payload.country),
                 "created_at": now_utc().isoformat()})
     await db.fields.insert_one(doc)
     return serialize_field(doc)
@@ -120,8 +158,10 @@ async def update_field(field_id: str, payload: FieldPayload,
                        user: dict = Depends(require_role("owner"))):
     if payload.field_type not in FIELD_TYPES:
         raise HTTPException(status_code=400, detail="Tipo de campo invalido")
+    data = payload.model_dump()
+    data["currency"] = currency_for_country(payload.country)
     res = await db.fields.update_one({"id": field_id, "owner_id": str(user["_id"])},
-                                     {"$set": payload.model_dump()})
+                                     {"$set": data})
     if not res.matched_count:
         raise HTTPException(status_code=404, detail="Campo nao encontrado")
     f = await db.fields.find_one({"id": field_id})
@@ -154,7 +194,7 @@ async def owner_agenda(field_id: str, date: str, user: dict = Depends(require_ro
                                "payment_method": b.get("payment_method")}
         out.append(slot)
     blocks = await db.blocks.find({"field_id": field_id, "date": date}, {"_id": 0}).to_list(100)
-    return {"date": date, "slots": out, "blocks": blocks}
+    return {"date": date, "slots": out, "blocks": blocks, "currency": f.get("currency", "brl")}
 
 
 @router.post("/owner/fields/{field_id}/blocks")

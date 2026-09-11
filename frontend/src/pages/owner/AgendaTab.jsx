@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Ban, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import api, { brl, formatApiError } from "../../lib/api";
-import { useLang } from "../../context/LangContext";
+import api, { formatApiError } from "../../lib/api";
+import { useLang, money } from "../../context/LangContext";
+import ReceiptButton from "../../components/ReceiptButton";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -79,6 +80,17 @@ export default function AgendaTab() {
     }
   };
 
+  const markPaid = async (id) => {
+    try {
+      await api.post(`/owner/bookings/${id}/mark-paid`);
+      toast.success(t("marked_paid"));
+      setBookingDialog(null);
+      load();
+    } catch (e) {
+      toast.error(formatApiError(e));
+    }
+  };
+
   return (
     <div>
       <div className="flex flex-wrap items-end gap-3">
@@ -111,7 +123,7 @@ export default function AgendaTab() {
             className={`rounded-xl border p-3 text-left transition-all active:scale-95 ${SLOT_STYLES[s.status]}`}>
             <div className="font-mono font-semibold text-sm">{s.start} - {s.end}</div>
             <div className="text-xs mt-1 opacity-80 truncate">
-              {s.status === "available" ? brl(s.price) : s.status === "booked" ? s.booking?.customer_name : t(s.status)}
+              {s.status === "available" ? money(s.price, agenda?.currency) : s.status === "booked" ? s.booking?.customer_name : t(s.status)}
             </div>
           </button>
         ))}
@@ -172,8 +184,21 @@ export default function AgendaTab() {
             <div className="space-y-2 text-sm">
               <p className="font-mono">{date} · {bookingDialog.start} - {bookingDialog.end}</p>
               <p className="text-slate-600">{bookingDialog.booking.customer_phone}</p>
-              <p className="text-slate-600">{t("payment_method")}: {t(bookingDialog.booking.payment_method === "online" ? "online" : "on_site")} · {bookingDialog.booking.payment_status}</p>
-              <p className="font-mono font-semibold text-emerald-600">{brl(bookingDialog.price)}</p>
+              <p className="text-slate-600">{t("payment_method")}: {t(bookingDialog.booking.payment_method === "online" ? "online" : "on_site")} ·{" "}
+                <span className={bookingDialog.booking.payment_status === "paid" ? "text-emerald-600 font-semibold" : "text-amber-600 font-semibold"}>
+                  {bookingDialog.booking.payment_status === "paid" ? t("paid")
+                    : bookingDialog.booking.payment_status === "pending_on_site" ? t("payment_pending_local")
+                    : bookingDialog.booking.payment_status}
+                </span>
+              </p>
+              <p className="font-mono font-semibold text-emerald-600">{money(bookingDialog.price, agenda?.currency)}</p>
+              <ReceiptButton bookingId={bookingDialog.booking.id} canUpload={bookingDialog.booking.payment_method === "on_site"} onChanged={load} />
+              {bookingDialog.booking.payment_method === "on_site" && bookingDialog.booking.payment_status === "pending_on_site" && bookingDialog.booking.status !== "canceled" && (
+                <Button data-testid="mark-paid-button" onClick={() => markPaid(bookingDialog.booking.id)}
+                  className="w-full mt-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full">
+                  {t("mark_as_paid")}
+                </Button>
+              )}
               {bookingDialog.booking.status !== "canceled" && (
                 <Button data-testid="owner-cancel-booking-button" onClick={() => cancelBooking(bookingDialog.booking.id)}
                   variant="outline" className="w-full mt-4 rounded-full border-rose-200 text-rose-600 hover:bg-rose-50">

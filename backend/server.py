@@ -175,6 +175,19 @@ async def startup():
     await db.payment_transactions.create_index("session_id", unique=True)
     await db.user_sessions.create_index("session_token", unique=True)
     await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
+    await db.files.create_index("storage_path", unique=True)
+    await db.audit_logs.create_index("created_at")
+    await db.fields.update_many({"currency": {"$exists": False}},
+                                {"$set": {"country": "BR", "currency": "brl", "hidden": False}})
+    await db.bookings.update_many({"currency": {"$exists": False}}, {"$set": {"currency": "brl"}})
+    await db.bookings.update_many({"payment_method": "on_site", "payment_status": "on_site"},
+                                  {"$set": {"payment_status": "pending_on_site"}})
+    try:
+        from storage_service import init_storage
+        init_storage()
+        logger.info("Object storage initialized")
+    except Exception as e:
+        logger.error("Storage init failed: %s", e)
     await seed_admin()
     await seed_demo()
 

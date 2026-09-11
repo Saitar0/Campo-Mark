@@ -10,6 +10,17 @@ from motor.motor_asyncio import AsyncIOMotorClient
 client = AsyncIOMotorClient(os.environ["MONGO_URL"])
 db = client[os.environ["DB_NAME"]]
 
+import uuid
+
+COUNTRY_CURRENCY = {
+    "BR": "brl", "US": "usd", "GB": "gbp", "AR": "ars", "MX": "mxn",
+    "CO": "cop", "CL": "clp", "PT": "eur", "ES": "eur", "DE": "eur",
+    "FR": "eur", "IT": "eur",
+}
+
+
+def currency_for_country(country_code: str) -> str:
+    return COUNTRY_CURRENCY.get((country_code or "").upper(), "brl")
 JWT_ALGORITHM = "HS256"
 LOCAL_TZ = ZoneInfo("America/Sao_Paulo")
 PENDING_HOLD_MINUTES = 60
@@ -75,6 +86,8 @@ async def get_current_user(request: Request) -> dict:
                 raise HTTPException(status_code=401, detail="User not found")
             if payload.get("ver", 0) != user.get("token_version", 0):
                 raise HTTPException(status_code=401, detail="Session expired")
+            if user.get("is_banned") or user.get("is_deleted") or not user.get("is_active", True):
+                raise HTTPException(status_code=403, detail="Conta suspensa ou banida")
             return user
         except jwt.ExpiredSignatureError:
             raise HTTPException(status_code=401, detail="Token expired")
@@ -93,7 +106,7 @@ async def get_current_user(request: Request) -> dict:
                 await db.user_sessions.delete_one({"session_token": session_token})
                 raise HTTPException(status_code=401, detail="Session expired")
             user = await db.users.find_one({"_id": ObjectId(sess["user_id"])})
-            if user:
+            if user and not (user.get("is_banned") or user.get("is_deleted")) and user.get("is_active", True):
                 return user
     raise HTTPException(status_code=401, detail="Not authenticated")
 
@@ -139,10 +152,19 @@ def owner_can_operate(user: dict) -> bool:
 
 
 async def notify(user_id: str, title: str, body: str):
-    import uuid
+    import uuid as _uuid
     await db.notifications.insert_one({
-        "id": str(uuid.uuid4()), "user_id": user_id, "title": title, "body": body,
+        "id": str(_uuid.uuid4()), "user_id": user_id, "title": title, "body": body,
         "read": False, "created_at": now_utc().isoformat(),
+    })
+
+
+async def audit(actor: dict, action: str, target_type: str, target_id: str, details: str = ""):
+    await db.audit_logs.insert_one({
+        "id": str(uuid.uuid4()), "actor_id": str(actor["_id"]),
+        "actor_email": actor.get("email", ""), "action": action,
+        "target_type": target_type, "target_id": str(target_id), "details": details,
+        "created_at": now_utc().isoformat(),
     })
 
 

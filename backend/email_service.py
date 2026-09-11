@@ -165,3 +165,12 @@ async def send_password_reset_email(to_email: str, token: str) -> bool:
         f'<p>Este link expira em 1 hora e so pode ser usado uma vez. Se voce nao solicitou, '
         f'ignore este e-mail.</p>')
     return await send_email(to=to_email, subject=f"Redefinir sua senha - {brand}", html=html)
+
+
+async def send_owner_warning(owner: dict, message: str) -> bool:
+    link = f"{FRONTEND_URL}/painel"
+    html = _wrap(
+        f'<p>Ola, {escape(owner.get("name", ""))}! Voce recebeu um aviso da equipe {EMAIL_FROM_NAME}:</p>'
+        f'<p style="background:#fff7ed;border-left:4px solid #f59e0b;padding:12px">{escape(message)}</p>'
+        f'<p><a href="{escape(link)}">Acessar meu painel</a></p>')
+    return await send_email(to=owner["email"], subject=f"Aviso importante - {EMAIL_FROM_NAME}", html=html)

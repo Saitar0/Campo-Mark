@@ -1,4 +1,33 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import api from "../lib/api";
+
+export const COUNTRIES = [
+  { code: "BR", name: "Brasil", currency: "brl" },
+  { code: "US", name: "United States", currency: "usd" },
+  { code: "PT", name: "Portugal", currency: "eur" },
+  { code: "ES", name: "España", currency: "eur" },
+  { code: "AR", name: "Argentina", currency: "ars" },
+  { code: "MX", name: "México", currency: "mxn" },
+  { code: "CO", name: "Colombia", currency: "cop" },
+  { code: "CL", name: "Chile", currency: "clp" },
+  { code: "GB", name: "United Kingdom", currency: "gbp" },
+  { code: "DE", name: "Deutschland", currency: "eur" },
+  { code: "FR", name: "France", currency: "eur" },
+  { code: "IT", name: "Italia", currency: "eur" },
+];
+
+export const currencyForCountry = (code) =>
+  (COUNTRIES.find((c) => c.code === code) || {}).currency || "brl";
+
+export const money = (v, currency = "brl") => {
+  try {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency", currency: (currency || "brl").toUpperCase(),
+    }).format(v ?? 0);
+  } catch {
+    return `${(v ?? 0).toFixed(2)} ${(currency || "").toUpperCase()}`;
+  }
+};
 
 const dict = {
   pt: {
@@ -16,12 +45,15 @@ const dict = {
     search_placeholder: "Buscar por nome ou bairro",
     all_cities: "Todas as cidades",
     all_types: "Todos os tipos",
+    all_countries: "Todos os países",
+    country: "País",
     society: "Society",
     futsal: "Futsal",
     campo: "Campo aberto",
     from_price: "a partir de",
     book_now: "Reservar",
     no_fields: "Nenhum campo encontrado",
+    no_fields_in_country: "Ainda não temos campos em {país} — cadastre o seu campo agora!",
     per_hour: "por horário",
     choose_date: "Escolha o dia",
     choose_time: "Escolha o horário",
@@ -151,7 +183,6 @@ const dict = {
     notifications: "Notificações",
     no_notifications: "Sem notificações",
     mark_read: "Marcar como lidas",
-    days: ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"],
     step_field: "1. Campo",
     step_time: "2. Horário",
     step_pay: "3. Pagamento",
@@ -160,6 +191,47 @@ const dict = {
     owner_cta_button: "Cadastrar meu campo",
     continue_with_google: "Continuar com Google",
     or_divider: "ou",
+    mark_as_paid: "Marcar como pago",
+    marked_paid: "Pagamento registrado",
+    payment_pending_local: "Pagamento pendente (no local)",
+    paid: "Pago",
+    receipt: "Comprovante",
+    view_receipt: "Ver comprovante",
+    upload_receipt: "Anexar comprovante",
+    no_receipt: "Sem comprovante",
+    receipt_uploaded: "Comprovante anexado",
+    receipt_auto_stripe: "Comprovante automático (Stripe)",
+    view_as_owner: "Ver como dono",
+    edit_profile: "Editar perfil",
+    profile_updated: "Perfil atualizado",
+    warn_owner: "Enviar aviso",
+    warning_message: "Mensagem do aviso",
+    send_warning: "Enviar aviso",
+    warning_sent: "Aviso enviado ao dono",
+    suspend_account: "Suspender conta",
+    ban_account: "Banir conta",
+    delete_account: "Deletar conta",
+    activate_account: "Reativar conta",
+    account_suspended: "Conta suspensa",
+    account_banned: "Conta banida",
+    account_deleted: "Conta deletada",
+    account_activated: "Conta reativada",
+    banned: "Banido",
+    suspended: "Suspenso",
+    confirm_destructive: "Tem certeza? Essa ação fica registrada no log de auditoria.",
+    audit_log: "Log de auditoria",
+    action: "Ação",
+    actor: "Autor",
+    when: "Quando",
+    target: "Alvo",    make_private: "Tornar privado",
+    make_public: "Tornar público",
+    hidden_field: "Oculto da busca",
+    field_hidden: "Campo ocultado da busca pública",
+    field_visible: "Campo visível na busca pública",
+    theme_toggle: "Alternar tema",
+    recent_bookings: "Reservas recentes",
+    refunded: "Reembolsado",
+    deleted: "Deletado",
   },
   en: {
     app_name: "CampoMark",
@@ -176,12 +248,15 @@ const dict = {
     search_placeholder: "Search by name or neighborhood",
     all_cities: "All cities",
     all_types: "All types",
+    all_countries: "All countries",
+    country: "Country",
     society: "Society",
     futsal: "Futsal",
     campo: "Open field",
     from_price: "from",
     book_now: "Book now",
     no_fields: "No fields found",
+    no_fields_in_country: "No fields in {país} yet — list your field now!",
     per_hour: "per slot",
     choose_date: "Pick a day",
     choose_time: "Pick a time",
@@ -311,7 +386,6 @@ const dict = {
     notifications: "Notifications",
     no_notifications: "No notifications",
     mark_read: "Mark all as read",
-    days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     step_field: "1. Field",
     step_time: "2. Time",
     step_pay: "3. Payment",
@@ -320,17 +394,291 @@ const dict = {
     owner_cta_button: "List my field",
     continue_with_google: "Continue with Google",
     or_divider: "or",
+    mark_as_paid: "Mark as paid",
+    marked_paid: "Payment recorded",
+    payment_pending_local: "Payment pending (on site)",
+    paid: "Paid",
+    receipt: "Receipt",
+    view_receipt: "View receipt",
+    upload_receipt: "Upload receipt",
+    no_receipt: "No receipt",
+    receipt_uploaded: "Receipt uploaded",
+    receipt_auto_stripe: "Automatic receipt (Stripe)",
+    view_as_owner: "View as owner",
+    edit_profile: "Edit profile",
+    profile_updated: "Profile updated",
+    warn_owner: "Send warning",
+    warning_message: "Warning message",
+    send_warning: "Send warning",
+    warning_sent: "Warning sent to owner",
+    suspend_account: "Suspend account",
+    ban_account: "Ban account",
+    delete_account: "Delete account",
+    activate_account: "Reactivate account",
+    account_suspended: "Account suspended",
+    account_banned: "Account banned",
+    account_deleted: "Account deleted",
+    account_activated: "Account reactivated",
+    banned: "Banned",
+    suspended: "Suspended",
+    confirm_destructive: "Are you sure? This action is recorded in the audit log.",
+    audit_log: "Audit log",
+    action: "Action",
+    actor: "Actor",
+    when: "When",
+    target: "Target",
+    make_private: "Make private",
+    make_public: "Make public",
+    hidden_field: "Hidden from search",
+    field_hidden: "Field hidden from public search",
+    field_visible: "Field visible in public search",
+    theme_toggle: "Toggle theme",
+    recent_bookings: "Recent bookings",
+    refunded: "Refunded",
+    deleted: "Deleted",
+  },
+  es: {
+    app_name: "CampoMark",
+    nav_explore: "Explorar canchas",
+    nav_my_bookings: "Mis reservas",
+    nav_dashboard: "Panel del dueño",
+    nav_admin: "Administración",
+    login: "Iniciar sesión",
+    logout: "Salir",
+    register: "Crear cuenta",
+    hero_title: "Reserva tu cancha en 3 pasos",
+    hero_subtitle: "Encuentra canchas de society, futsal y campos abiertos cerca de ti. Elige el horario, paga online y juega.",
+    hero_badge: "Agenda en tiempo real · Sin conflictos de horario",
+    search_placeholder: "Buscar por nombre o barrio",
+    all_cities: "Todas las ciudades",
+    all_types: "Todos los tipos",
+    all_countries: "Todos los países",
+    country: "País",
+    society: "Society",
+    futsal: "Futsal",
+    campo: "Campo abierto",
+    from_price: "desde",
+    book_now: "Reservar",
+    no_fields: "No se encontraron canchas",
+    no_fields_in_country: "¡Aún no tenemos canchas en {país} — registra la tuya ahora!",
+    per_hour: "por horario",
+    choose_date: "Elige el día",
+    choose_time: "Elige el horario",
+    available: "Disponible",
+    booked: "Reservado",
+    blocked: "Bloqueado",
+    past: "Pasado",
+    summary: "Resumen de la reserva",
+    field: "Cancha",
+    date: "Fecha",
+    time: "Horario",
+    price: "Precio",
+    payment_method: "Método de pago",
+    pay_online: "Pagar online (tarjeta/Pix vía Stripe)",
+    pay_on_site: "Pagar en el lugar",
+    confirm_booking: "Confirmar reserva",
+    login_to_book: "Inicia sesión para reservar",
+    what_included: "Qué está incluido",
+    address: "Dirección",
+    cancellation_policy: "Política de cancelación",
+    cancel_policy_text: "Cancelación hasta {h}h antes con reembolso del {p}%",
+    my_bookings: "Mis reservas",
+    no_bookings: "Aún no tienes reservas",
+    cancel_booking: "Cancelar reserva",
+    pay_now: "Pagar ahora",
+    status_confirmed: "Confirmada",
+    status_pending_payment: "Pago pendiente",
+    status_canceled: "Cancelada",
+    booking_confirmed: "¡Reserva confirmada!",
+    booking_cancelled: "Reserva cancelada",
+    confirm_cancel_title: "¿Cancelar esta reserva?",
+    confirm: "Confirmar",
+    back: "Volver",
+    agenda: "Agenda",
+    fields_tab: "Mis canchas",
+    revenue_tab: "Facturación",
+    subscription_tab: "Suscripción",
+    add_field: "Agregar cancha",
+    edit_field: "Editar cancha",
+    manual_block: "Bloquear horario",
+    block_reason: "Motivo (mantenimiento, evento...)",
+    block_created: "Horario bloqueado",
+    block_removed: "Bloqueo eliminado",
+    remove_block: "Eliminar bloqueo",
+    blocks_today: "Bloqueos del día",
+    no_slots: "Sin horarios configurados para este día",
+    revenue_month: "Facturación del mes",
+    bookings_count: "Reservas",
+    online: "Online",
+    on_site: "En el lugar",
+    subscription_status: "Estado de suscripción",
+    trialing: "Prueba gratis",
+    active: "Activa",
+    past_due: "Vencida",
+    canceled: "Cancelada",
+    none: "Sin suscripción",
+    trial_days_left: "días de prueba restantes",
+    trial_expired: "Tu prueba gratis terminó. Suscríbete para seguir recibiendo reservas.",
+    subscribe_now: "Suscribirse ahora",
+    renews_at: "Renueva el",
+    plan_includes: "Panel completo, reservas ilimitadas y pagos online.",
+    admin_metrics: "Métricas de la plataforma",
+    owners: "Dueños de canchas",
+    active_subs: "Suscripciones activas",
+    trialing_subs: "En prueba gratis",
+    past_due_subs: "Vencidas",
+    fields_total: "Canchas activas",
+    bookings_month: "Reservas del mes",
+    mrr: "Ingresos mensuales (MRR)",
+    gmv_month: "Volumen de reservas del mes",
+    owner_name: "Dueño",
+    subscription: "Suscripción",
+    actions: "Acciones",
+    deactivate: "Desactivar",
+    activate: "Activar",
+    inactive: "Desactivado",
+    demo_customer: "Entrar como Jugador",
+    demo_owner: "Entrar como Dueño",
+    demo_admin: "Entrar como Admin",
+    email: "Correo electrónico",
+    password: "Contraseña",
+    name: "Nombre",
+    phone: "Teléfono (WhatsApp)",
+    i_am: "Soy",
+    customer_role: "Jugador (quiero reservar)",
+    owner_role: "Dueño de cancha",
+    forgot_password: "Olvidé mi contraseña",
+    send_reset: "Enviar enlace de restablecimiento",
+    reset_sent: "Si ese correo está registrado, enviamos el enlace.",
+    new_password: "Nueva contraseña",
+    reset_password: "Restablecer contraseña",
+    back_to_login: "Volver al inicio de sesión",
+    payment_success: "¡Pago confirmado!",
+    payment_processing: "Confirmando pago...",
+    payment_failed: "No se pudo confirmar el pago",
+    payment_cancelled: "Pago cancelado",
+    payment_cancelled_text: "Cancelaste el checkout. Tu reserva no fue confirmada.",
+    go_bookings: "Ver mis reservas",
+    go_home: "Volver al inicio",
+    save: "Guardar",
+    delete: "Eliminar",
+    cancel: "Cancelar",
+    field_name: "Nombre de la cancha",
+    city: "Ciudad",
+    neighborhood: "Barrio",
+    description: "Descripción",
+    photos: "Fotos (una URL por línea)",
+    slot_duration: "Duración de cada reserva (min)",
+    weekly_schedule: "Horario semanal",
+    add_window: "Agregar franja",
+    cancel_hours: "Cancelación hasta (horas antes)",
+    refund_percent: "Reembolso (%)",
+    accepts: "Pagos aceptados",
+    amenities_label: "Elementos incluidos",
+    field_saved: "¡Cancha guardada!",
+    field_deleted: "Cancha eliminada",
+    booking_cancelled_by_owner: "Reserva cancelada y reembolsada (si fue pagada online)",
+    amenity_bola: "Balón",
+    amenity_coletes: "Pecheras",
+    amenity_iluminacao: "Iluminación",
+    amenity_vestiario: "Vestuarios",
+    amenity_arbitragem: "Arbitraje",
+    amenity_estacionamento: "Estacionamiento",
+    amenity_churrasqueira: "Parrilla",
+    amenity_bar: "Bar/Cafetería",
+    select_field: "Selecciona la cancha",
+    notifications: "Notificaciones",
+    no_notifications: "Sin notificaciones",
+    mark_read: "Marcar como leídas",
+    step_field: "1. Cancha",
+    step_time: "2. Horario",
+    step_pay: "3. Pago",
+    owner_cta_title: "¿Tienes una cancha?",
+    owner_cta_text: "Gestiona agenda, reservas y pagos en un solo lugar. Prueba gratis por 7 días.",
+    owner_cta_button: "Registrar mi cancha",
+    continue_with_google: "Continuar con Google",
+    or_divider: "o",
+    mark_as_paid: "Marcar como pagado",
+    marked_paid: "Pago registrado",
+    payment_pending_local: "Pago pendiente (en el lugar)",
+    paid: "Pagado",
+    receipt: "Comprobante",
+    view_receipt: "Ver comprobante",
+    upload_receipt: "Adjuntar comprobante",
+    no_receipt: "Sin comprobante",
+    receipt_uploaded: "Comprobante adjuntado",
+    receipt_auto_stripe: "Comprobante automático (Stripe)",
+    view_as_owner: "Ver como dueño",
+    edit_profile: "Editar perfil",
+    profile_updated: "Perfil actualizado",
+    warn_owner: "Enviar aviso",
+    warning_message: "Mensaje del aviso",
+    send_warning: "Enviar aviso",
+    warning_sent: "Aviso enviado al dueño",
+    suspend_account: "Suspender cuenta",
+    ban_account: "Banear cuenta",
+    delete_account: "Eliminar cuenta",
+    activate_account: "Reactivar cuenta",
+    account_suspended: "Cuenta suspendida",
+    account_banned: "Cuenta baneada",
+    account_deleted: "Cuenta eliminada",
+    account_activated: "Cuenta reactivada",
+    banned: "Baneado",
+    suspended: "Suspendido",
+    confirm_destructive: "¿Estás seguro? Esta acción queda registrada en el log de auditoría.",
+    audit_log: "Log de auditoría",
+    action: "Acción",
+    actor: "Autor",
+    when: "Cuándo",
+    target: "Objetivo",
+    make_private: "Hacer privada",
+    make_public: "Hacer pública",
+    hidden_field: "Oculta de la búsqueda",
+    field_hidden: "Cancha ocultada de la búsqueda pública",
+    field_visible: "Cancha visible en la búsqueda pública",
+    theme_toggle: "Cambiar tema",
+    recent_bookings: "Reservas recientes",
+    refunded: "Reembolsado",
+    deleted: "Eliminado",
   },
 };
 
 const LangContext = createContext(null);
 
+function detectBrowserLang() {
+  const nav = (navigator.language || "pt").toLowerCase();
+  if (nav.startsWith("pt")) return "pt";
+  if (nav.startsWith("es")) return "es";
+  return "en";
+}
+
 export function LangProvider({ children }) {
-  const [lang, setLang] = useState(() => localStorage.getItem("campomark_lang") || "pt");
-  const change = (l) => {
-    setLang(l);
+  // Manual choices are persisted; auto-detection never overwrites them.
+  const [lang, setLangState] = useState(
+    () => localStorage.getItem("campomark_lang") || detectBrowserLang()
+  );
+  const [country, setCountryState] = useState(
+    () => localStorage.getItem("campomark_country") || null
+  );
+
+  useEffect(() => {
+    if (!localStorage.getItem("campomark_country")) {
+      api.get("/geo").then((r) => {
+        if (r.data?.country) setCountryState(r.data.country);
+      }).catch(() => {});
+    }
+  }, []);
+
+  const setLang = (l) => {
+    setLangState(l);
     localStorage.setItem("campomark_lang", l);
   };
+  const setCountry = (c) => {
+    setCountryState(c);
+    if (c) localStorage.setItem("campomark_country", c);
+    else localStorage.removeItem("campomark_country");
+  };
+
   const t = (key, vars) => {
     let s = dict[lang]?.[key] ?? dict.pt[key] ?? key;
     if (typeof s === "string" && vars) {
@@ -338,7 +686,12 @@ export function LangProvider({ children }) {
     }
     return s;
   };
-  return <LangContext.Provider value={{ lang, setLang: change, t }}>{children}</LangContext.Provider>;
+
+  return (
+    <LangContext.Provider value={{ lang, setLang, country, setCountry, t }}>
+      {children}
+    </LangContext.Provider>
+  );
 }
 
 export const useLang = () => useContext(LangContext);

@@ -1,0 +1,40 @@
+{
+  "summary": "Iteration 2 testing: extended pytest suite (24 new tests) covering i18n/geo, currency-per-country, admin advanced (owner detail/warn/profile/account actions/audit log/field visibility), and on-site payment + receipt upload flow. 23/24 backend passed. Frontend verified: theme-toggle (dark mode persists across reload without flash), language-toggle (PT/EN/ES) with translations applied and persisted, country-select (BR/US selectable — frontend has manual country list, not tied only to /countries API), USD currency shown for US fields, no-fields-message + empty-country-cta shown correctly for empty countries, admin dashboard shows metrics/owners table/audit-log-table (17 rows), OwnerDetail modal renders with all expected testids (admin-warn-button, admin-owner-save-profile, admin-suspend/ban/delete-button, admin-field-hide/edit/delete-field-*), AlertDialog confirmation flow correctly generates *-confirm testids dynamically. ONE confirmed backend BUG: suspended owners (is_active=False) can still login — auth blocks only banned/deleted. Fields hiding logic works correctly (owner_can_operate filters them out publicly), but login itself should return 403 per spec.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/auth/login", "issue": "Suspended owner (is_active=False) can still login and hit protected endpoints. Spec requires 403. Currently auth_routes.login only blocks users where is_banned or is_deleted. Fix: add `if not user.get('is_active', True): raise 403` in login path. Same for Google login.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration2.py",
+    "/app/backend/tests/test_campomark_api.py",
+    "/app/test_reports/pytest/iteration2_results.xml"
+  ],
+  "action_items": [
+    "Fix POST /api/auth/login (email + Google) to reject suspended accounts (is_active=False) with 401/403 — currently only banned/deleted are blocked, contradicting the spec 'suspender dono → dono não consegue logar (403)'."
+  ],
+  "critical_code_review_comments": [
+    "auth_routes.py login (line ~94) and Google login (line ~146) check `is_banned or is_deleted` but ignore `is_active=False`. deps.get_current_user should also return 401 if the token holder was suspended after issue (currently only banned/deleted invalidate). Consider unifying via a single `user_can_login(user)` helper.",
+    "field_routes.list_fields correctly filters by owner_can_operate (which does check is_active + subscription), so public listing is safe. Only auth path is broken.",
+    "admin_routes.OwnerProfileUpdate does not audit changes vs. previous values — audit log message says only `name=X` without old value; consider adding delta.",
+    "audit_logs endpoint returns up to 200 rows without pagination; add limit/offset params for larger histories.",
+    "storage_service upload not size-checked at streaming layer — MAX_RECEIPT_SIZE is enforced only after full read (5MB is fine but attacker could push 5MB * N concurrently).",
+    "country_select in frontend has a manual country list — good for showing empty states — but the list should either be pulled from a single source of truth or documented; currently /api/fields/countries only returns populated countries."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration2.py"
+  ],
+  "success_rate": {"backend": "95.8% (23/24 new + 32/32 iter1)", "frontend": "100% of new features verified"},
+  "test_credentials": "Present at /app/memory/test_credentials.md — all 3 accounts working. IMPORTANT: dono@campomark.com was suspended then reactivated during testing; confirmed reactive OK. Admin activated at end of run.",
+  "seed_data_creation": "Created ephemeral 'TEST_ US Arena' and 'UI_TEST US Field' fields for country/currency verification — cleaned up at end (3 test fields removed). One test booking (customer, +8 days) created and marked paid — left in DB with an uploaded PNG receipt (small).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend suites: /app/backend/tests/test_campomark_api.py (iter1, 32 tests) + /app/backend/tests/test_iteration2.py (iter2, 24 tests). Run with `pytest tests/ -n 0` from /app/backend. New testids verified in UI: theme-toggle, country-select, language-toggle, lang-es, no-fields-message, empty-country-cta, admin-owner-detail-<id>, admin-owner-save-profile, admin-warn-button, admin-suspend-button, admin-ban-button, admin-delete-button (+ dynamic *-confirm inside AlertDialog), admin-field-hide-<id>, admin-delete-field-<id>, admin-edit-field-<id>, audit-log-table. Mark-paid and receipt-upload/view UI testids on owner Agenda/Revenue and customer bookings pages were not clicked in browser but their backend endpoints are fully green in pytest.",
+  "rca of the issue": "BUG: Suspended login not blocked. RCA: auth_routes.py login (approx lines 90–100) contains `if user.get('is_banned') or user.get('is_deleted'): raise 403` but no equivalent check for `is_active`. When admin calls POST /api/admin/owners/<id>/account {action:'suspend'}, backend only sets is_active=False. Public field listing correctly hides via owner_can_operate, but login still returns 200 with valid JWT, letting the suspended owner keep operating their account (create bookings, view revenue). Mitigation: add `if not user.get('is_active', True): raise HTTPException(403, 'Conta suspensa. Contate o suporte.')` in both /api/auth/login and /api/auth/google/session, and also in deps.get_current_user (so existing sessions can't outlive a suspension). Reproduction: (1) admin POST /api/admin/owners/<owner_id>/account {'action':'suspend'} → 200; (2) POST /api/auth/login {dono@campomark.com/demo12345} → still returns 200 with role=owner. Expected: 401/403."
+}

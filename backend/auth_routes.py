@@ -91,6 +91,8 @@ async def login(req: LoginRequest, request: Request, response: Response):
         await db.login_attempts.insert_one({"identifier": identifier, "email": email,
                                             "created_at": now_utc().isoformat()})
         raise HTTPException(status_code=401, detail="Email ou senha incorretos")
+    if user.get("is_banned") or user.get("is_deleted") or not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Conta suspensa ou banida")
     await db.login_attempts.delete_many({"identifier": identifier})
     uid = str(user["_id"])
     ver = user.get("token_version", 0)
@@ -141,6 +143,8 @@ async def google_session(req: GoogleSessionRequest, response: Response):
         await db.users.update_one({"_id": user["_id"]}, {"$set": {
             "name": data.get("name") or user.get("name"), "picture": data.get("picture")}})
         user = await db.users.find_one({"_id": user["_id"]})
+    if user.get("is_banned") or user.get("is_deleted") or not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Conta suspensa ou banida")
     session_token = data["session_token"]
     await db.user_sessions.delete_many({"session_token": session_token})
     await db.user_sessions.insert_one({

@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CalendarDays, MapPin } from "lucide-react";
 import { toast } from "sonner";
-import api, { brl, formatApiError } from "../lib/api";
-import { useLang } from "../context/LangContext";
+import api, { formatApiError } from "../lib/api";
+import { useLang, money } from "../context/LangContext";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import ReceiptButton from "../components/ReceiptButton";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -69,15 +70,24 @@ export default function MyBookings() {
                 <div className="flex items-center gap-3 flex-wrap">
                   <h3 className="font-display font-bold text-lg text-slate-900">{b.field_name}</h3>
                   <Badge data-testid={`booking-status-${b.id}`} className={STATUS_STYLE[b.status]}>{t(`status_${b.status}`)}</Badge>
+                  {b.status === "confirmed" && b.payment_method === "on_site" && (
+                    <Badge data-testid={`booking-payment-${b.id}`}
+                      className={`border-0 ${b.payment_status === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                      {b.payment_status === "paid" ? t("paid") : t("payment_pending_local")}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-sm text-slate-500 flex items-center gap-1.5">
                   <CalendarDays className="w-4 h-4" />
                   <span className="font-mono">{b.date} · {b.start_time} - {b.end_time}</span>
-                  <span className="font-mono font-semibold text-emerald-600 ml-2">{brl(b.price)}</span>
+                  <span className="font-mono font-semibold text-emerald-600 ml-2">{money(b.price, b.currency)}</span>
                 </p>
                 <p className="text-sm text-slate-500 flex items-center gap-1.5">
                   <MapPin className="w-4 h-4" /> {b.field_address}{b.field_city ? ` — ${b.field_city}` : ""}
                 </p>
+                {b.status === "confirmed" && (
+                  <ReceiptButton bookingId={b.id} canUpload={b.payment_method === "on_site"} />
+                )}
               </div>
               <div className="flex gap-2 shrink-0">
                 {b.status === "pending_payment" && (

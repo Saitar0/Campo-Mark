@@ -3,9 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { addDays, format } from "date-fns";
 import { CheckCircle2, MapPin, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import api, { brl, formatApiError } from "../lib/api";
+import api, { formatApiError } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
-import { useLang } from "../context/LangContext";
+import { useLang, money } from "../context/LangContext";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
@@ -173,7 +173,7 @@ export default function FieldDetail() {
                                    : SLOT_STYLES[s.status]}`}>
                       <div className="font-mono font-semibold text-sm">{s.start} - {s.end}</div>
                       <div className={`text-xs mt-1 ${isSelected ? "text-emerald-100" : s.status === "available" ? "text-emerald-600" : "opacity-70"}`}>
-                        {s.status === "available" ? brl(s.price) : t(s.status)}
+                        {s.status === "available" ? money(s.price, field.currency) : t(s.status)}
                       </div>
                     </button>
                   );
@@ -204,7 +204,7 @@ export default function FieldDetail() {
               <div className="flex justify-between gap-4 pt-3 border-t border-slate-100">
                 <dt className="text-slate-500">{t("price")}</dt>
                 <dd data-testid="summary-price" className="font-mono font-bold text-lg text-emerald-600">
-                  {selected ? brl(selected.price) : "—"}
+                  {selected ? money(selected.price, field.currency) : "—"}
                 </dd>
               </div>
             </dl>
@@ -241,7 +241,7 @@ export default function FieldDetail() {
         <div data-testid="mobile-dock" className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 p-4 flex items-center justify-between gap-4 z-40">
           <div>
             <p className="font-mono text-sm font-semibold text-slate-900">{selected.start} - {selected.end}</p>
-            <p className="font-mono text-emerald-600 font-bold">{brl(selected.price)}</p>
+            <p className="font-mono text-emerald-600 font-bold">{money(selected.price, field.currency)}</p>
           </div>
           <Button onClick={confirm} disabled={loading}
             className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-6 active:scale-95 transition-transform">

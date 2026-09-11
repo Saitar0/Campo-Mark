@@ -32,6 +32,27 @@
         --chart-5: 27 87% 67%;
         --radius: 0.75rem;
     }
+    .dark {
+        --background: 222 47% 6%;
+        --foreground: 210 40% 96%;
+        --card: 222 40% 10%;
+        --card-foreground: 210 40% 96%;
+        --popover: 222 40% 10%;
+        --popover-foreground: 210 40% 96%;
+        --primary: 160 84% 39%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 220 30% 16%;
+        --secondary-foreground: 160 60% 80%;
+        --muted: 220 30% 14%;
+        --muted-foreground: 215 20% 65%;
+        --accent: 220 30% 16%;
+        --accent-foreground: 160 60% 80%;
+        --destructive: 0 62.8% 45%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 219 28% 20%;
+        --input: 219 28% 25%;
+        --ring: 160 84% 39%;
+    }
 }
 
 @layer base {
@@ -51,6 +72,40 @@
         font-family: 'JetBrains Mono', monospace;
     }
 }
+
+/* ---- Dark mode surface overrides (apply app-wide without touching every component) ---- */
+.dark body { background-color: #0B0F17; color: #F1F5F9; }
+.dark .bg-white { background-color: #161E2E; }
+.dark .bg-slate-50 { background-color: #131A29; }
+.dark .bg-slate-100 { background-color: #1E293B; }
+.dark .text-slate-900 { color: #F1F5F9; }
+.dark .text-slate-800 { color: #E2E8F0; }
+.dark .text-slate-700 { color: #CBD5E1; }
+.dark .text-slate-600 { color: #94A3B8; }
+.dark .text-slate-500 { color: #94A3B8; }
+.dark .text-slate-400 { color: #7B8AA0; }
+.dark .border-slate-200 { border-color: #27354A; }
+.dark .border-slate-100 { border-color: #27354A; }
+.dark .border-slate-300 { border-color: #33465F; }
+.dark .shadow-xl, .dark .shadow-2xl, .dark .shadow-sm { box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+/* slot / badge semantic colors */
+.dark .bg-emerald-50 { background-color: rgba(6, 78, 59, .45); }
+.dark .bg-emerald-100 { background-color: rgba(6, 78, 59, .55); }
+.dark .text-emerald-700 { color: #6EE7B7; }
+.dark .text-emerald-600 { color: #34D399; }
+.dark .border-emerald-300 { border-color: #065F46; }
+.dark .bg-blue-50 { background-color: rgba(30, 58, 95, .5); }
+.dark .bg-blue-100 { background-color: rgba(30, 58, 95, .6); }
+.dark .text-blue-700 { color: #93C5FD; }
+.dark .border-blue-300 { border-color: #1E40AF; }
+.dark .bg-amber-50 { background-color: rgba(69, 45, 10, .5); }
+.dark .bg-amber-100 { background-color: rgba(69, 45, 10, .6); }
+.dark .text-amber-700, .dark .text-amber-800 { color: #FCD34D; }
+.dark .border-amber-200, .dark .border-amber-300 { border-color: #92600E; }
+.dark .bg-rose-50 { background-color: rgba(76, 20, 28, .5); }
+.dark .bg-rose-100 { background-color: rgba(76, 20, 28, .6); }
+.dark .text-rose-600, .dark .text-rose-700 { color: #FDA4AF; }
+.dark .border-rose-200 { border-color: #9F1239; }
 
 @layer base {
     [data-debug-wrapper="true"] {
