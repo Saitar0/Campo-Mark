@@ -32,6 +32,7 @@ services:
       - "3001:3001"
     environment:
       MONGO_URL: mongodb://campomark_user:CampoMark%402026@mongodb:27017/campomark?authSource=admin
+      DB_NAME: campomark
       JWT_SECRET: sua_chave_jwt_super_secreta_aqui_mude_isso
       ADMIN_EMAIL: admin@campomark.com
       ADMIN_PASSWORD: CampoMark@2026
