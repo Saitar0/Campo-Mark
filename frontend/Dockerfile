@@ -9,8 +9,9 @@ RUN apk add --no-cache python3 make g++ cairo-dev jpeg-dev pango-dev giflib-dev
 COPY package*.json ./
 
 # Usa yarn (mais eficiente que npm com monorepos e resolutions)
-RUN npm install --global yarn && \
-    yarn install --network-timeout 100000
+RUN corepack enable && corepack prepare yarn@stable --activate
+RUN yarn install --network-timeout 100000
+
 
 COPY . .
 
