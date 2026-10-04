@@ -3,16 +3,19 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Instala ferramentas necessárias para compilar dependências nativas
+# Instala ferramentas necessárias e aumenta limites de memória
 RUN apk add --no-cache python3 make g++ cairo-dev jpeg-dev pango-dev giflib-dev
 
 COPY package*.json ./
 
-RUN npm install --legacy-peer-deps
+# Usa yarn (mais eficiente que npm com monorepos e resolutions)
+RUN npm install --global yarn && \
+    yarn install --network-timeout 100000
 
 COPY . .
 
-RUN npm run build
+# Build com memória aumentada
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
 # Etapa 2: Runtime
 FROM node:22-alpine
